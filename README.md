@@ -64,7 +64,6 @@ cp .env.example .env
 | `STREAM_LIMIT` | Chunks to stream before trying full download | `5` |
 | `LOG_LEVEL` | Logging level (`INFO`, `DEBUG`, etc.) | `INFO` |
 | `LOG_FORMAT` | Log line format string | timestamp/module/level |
-| `GC_THRESHOLD_0/1/2` | Python GC generation thresholds | `500, 5, 5` |
 | `CAPTION_TEMPLATE` | Custom HTML caption template (see below) | built-in |
 
 ### 4. Run
