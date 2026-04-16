@@ -179,7 +179,7 @@ def get_quality(width, height):
     ]
 
     for std_h, label in standards:
-        if h >= std_h * 0.5:
+        if h >= std_h * 0.6:
             return label
 
     return f"{h}p"
