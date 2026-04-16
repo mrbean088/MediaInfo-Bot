@@ -79,8 +79,12 @@ async def get_media_info(file_path):
         file_path
     ]
 
-    process = subprocess.run(cmd, stdout=subprocess.PIPE)
-    data = json.loads(process.stdout)
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    if process.returncode != 0:
+        raise Exception(process.stderr.decode())
+        
+    data = json.loads(process.stdout or "{}")
 
     duration = float(data.get("format", {}).get("duration", 0))
     height = None
