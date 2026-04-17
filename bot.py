@@ -118,6 +118,48 @@ def get_quality(width, height):
         return None
     return get_standard_resolution(min(width, height))
 
+def ffprobe_to_tracks(streams: list) -> list:
+    tracks = []
+
+    for s in streams:
+        tracks.append({
+            "@type": (s.get("codec_type") or "").capitalize(),
+            "Format": s.get("codec_name"),
+            "CodecID": s.get("codec_tag_string"),
+            "Title": (s.get("tags", {}) or {}).get("title", ""),
+            "MenuID": "",
+            "Format_Info": "",
+            "Encoding": (s.get("tags", {}) or {}).get("encoding", "")
+        })
+
+    return tracks
+
+def has_subtitles(tracks: list) -> bool:
+    if not tracks or not isinstance(tracks, list):
+        return False
+    
+    for track in tracks:
+        if not isinstance(track, dict):
+            continue
+            
+        track_type = (track.get('@type', '') or '').lower()
+        format_str = (track.get('Format', '') or '').lower()
+        codec_id = (track.get('CodecID', '') or '').lower()
+        encoding = (track.get('Encoding', '') or '').lower()
+        format_info = (track.get('Format_Info', '') or '').lower()
+        
+        if any([
+            track_type == 'text',
+            any(x in format_str for x in ['pgs', 'subrip', 'ass', 'ssa', 'srt']),
+            any(x in codec_id for x in ['s_text', 'subp', 'pgs', 'subtitle']),
+            any(x in encoding for x in ['utf-8', 'utf8', 'text']),
+            any(x in format_info for x in ['subtitle', 'caption', 'text']),
+            'subtitle' in str(track.get('Title', '')).lower()
+        ]):
+            return True
+    
+    return False
+
 def install_ffmpeg():
     try:
         subprocess.run(["ffprobe", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -155,7 +197,23 @@ async def get_media_info(file_path):
     audio_languages = set()
     subtitle_languages = set()
 
-    for stream in data.get("streams", []):
+    streams = data.get("streams", [])
+
+    tracks = []
+    for s in streams:
+        tracks.append({
+            "@type": (s.get("codec_type") or "").lower(),
+            "Format": s.get("codec_name"),
+            "CodecID": s.get("codec_tag_string"),
+            "Title": (s.get("tags", {}) or {}).get("title", ""),
+            "MenuID": "",
+            "Format_Info": "",
+            "Encoding": (s.get("tags", {}) or {}).get("encoding", "")
+        })
+
+    has_sub = has_subtitles(tracks)
+
+    for stream in streams:
 
         if stream.get("codec_type") == "video" and height is None:
             width = stream.get("width") or stream.get("coded_width")
@@ -176,7 +234,7 @@ async def get_media_info(file_path):
             elif any(x in pix_fmt for x in ["yuv420p", "yuv422p", "yuv444p"]):
                 bit_depth = "8"
             else:
-                bit_depth = "8"
+                bit_depth = ""
 
             transfer = (stream.get("color_transfer") or "").lower()
             color_space = (stream.get("color_space") or "").lower()
@@ -198,6 +256,12 @@ async def get_media_info(file_path):
             lang = stream.get("tags", {}).get("language", "unknown")
             subtitle_languages.add(get_full_language_name(lang))
 
+    subtitle_text = (
+        ", ".join(sorted(subtitle_languages))
+        if subtitle_languages
+        else ("Unknown Subtitles" if has_sub else "No Sub")
+    )
+
     return (
         duration,
         width,
@@ -207,7 +271,7 @@ async def get_media_info(file_path):
         hdr,
         transfer,
         ", ".join(sorted(audio_languages)) if audio_languages else "Unknown",
-        ", ".join(sorted(subtitle_languages)) if subtitle_languages else "No Sub"
+        subtitle_text
     )
 
 def format_duration(s):
