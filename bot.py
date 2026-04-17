@@ -401,7 +401,6 @@ async def restart(_, m):
 @app.on_message(filters.command("shutdown") & filters.user(ADMIN_ID))
 async def shutdown(_, m):
     await m.reply_text("Shutting down...")
-    scheduler.shutdown(wait=False)
     await app.stop()
     os._exit(0)
 
@@ -470,8 +469,6 @@ async def main():
     await app.send_message(ADMIN_ID, "🚀 Bot Started")
 
     asyncio.create_task(worker())
-
-    scheduler.start()
 
     await asyncio.Event().wait()
 
